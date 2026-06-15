@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2026 Thanusit Burinprakhon
  * SPDX-License-Identifier: Apache-2.0
