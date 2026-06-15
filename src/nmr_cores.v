@@ -24,8 +24,21 @@ module tt_um_thanusit_nmr_cores (
     
     wire [7:0] demod_i;
     wire [7:0] demod_q;
+    
+    wire spi_out_sclk;
+    wire spi_out_miso;
+    wire spi_out_busy;
 
-    // Instantiate CPMG Pulse Sequencer
+    // Edge detector to trigger SPI transmission when rx_gate closes
+    reg rx_gate_d;
+    wire tx_trigger = (rx_gate_d && !psq_rx_gate);
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) rx_gate_d <= 1'b0;
+        else         rx_gate_d <= psq_rx_gate;
+    end
+
+    // 1. Instantiate Pulse Sequencer
     pulse_sequencer psq_inst (
         .clk(clk),
         .rst_n(rst_n),
@@ -39,31 +52,42 @@ module tt_um_thanusit_nmr_cores (
         .status_busy(psq_busy)
     );
 
-    // Instantiate Quadrature Demodulator
+    // 2. Instantiate Quadrature Demodulator (Full 8-bit core resolution)
     quadrature_demodulator demod_inst (
         .clk(clk),
         .rst_n(rst_n),
-        .rx_gate(psq_rx_gate),   // Gated processing window directly from sequencer
-        .rx_in(ui_in[4]),        // 1-Bit Digitized RF Input Signal mapped to pin 4
+        .rx_gate(psq_rx_gate),   
+        .rx_in(ui_in[4]),        // 1-Bit Digitized Input RF connection
         .i_out(demod_i),
         .q_out(demod_q)
     );
 
-    // Bind physical dedicated output pins
+    // 3. Instantiate SPI Serial Stream Core
+    spi_tx spi_tx_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+        .trig_load(tx_trigger), // Trigger serial readout when processing block shuts
+        .data_i(demod_i),       // Raw 8-bit precision component
+        .data_q(demod_q),       // Raw 8-bit precision component
+        .spi_sclk(spi_out_sclk),
+        .spi_miso(spi_out_miso),
+        .spi_busy(spi_out_busy)
+    );
+
+    // Bind physical dedicated outputs 
     assign uo_out[0] = psq_rf_A;
     assign uo_out[1] = psq_rf_B;
     assign uo_out[2] = psq_rx_gate;
     assign uo_out[3] = psq_busy;
     
-    // Output the lower 4 bits of I and Q streams to dedicated output pins 4-7
-    assign uo_out[5:4] = demod_i[1:0];
-    assign uo_out[7:6] = demod_q[1:0];
+    // Assign Serial Outputs to dedicated pin lines
+    assign uo_out[4] = spi_out_sclk; // Outgoing clock for your DAQ host
+    assign uo_out[5] = spi_out_miso; // Serial data output stream (16 bits)
+    assign uo_out[6] = spi_out_busy; // High while data transmission is active
+    assign uo_out[7] = 1'b0;         // Unused pin tied low
 
-    // Map remaining upper 6 bits of I and Q streams over the bi-directional bus
-    assign uio_out[3:0] = demod_i[5:2];
-    assign uio_out[7:4] = demod_q[5:2];
-    
-    // Set all Bidirectional IOs explicitly as outputs (Active-High Output Enable)
-    assign uio_oe = 8'b11111111;
+    // Tie off remaining Bidirectional I/O pins cleanly
+    assign uio_out = 8'b00000000;
+    assign uio_oe  = 8'b00000000; // Configured completely as inputs to avoid contention
 
 endmodule
