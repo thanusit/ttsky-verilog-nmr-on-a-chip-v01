@@ -56,7 +56,7 @@ module quadrature_demodulator (
             // Quadrature Mixer
             case (lo_phase)
                 2'b01:   mixed_q = rx_in ? 2'sb01 : 2'sb11; // +1 or -1
-                2'b13:   mixed_q = rx_in ? 2'sb11 : 2'sb01; // -1 or +1
+                2'b11:   mixed_q = rx_in ? 2'sb11 : 2'sb01; // -1 or +1
                 default: mixed_q = 2'sb00;                  // 0
             endcase
         end
