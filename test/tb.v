@@ -49,7 +49,7 @@ module tb;
     // Clock Generation (20 MHz System Clock -> 50ns cycle period)
     // -------------------------------------------------------------------------
     always begin
-        #10 clk = ~clk;
+        #25 clk = ~clk;
     end
 
     // -------------------------------------------------------------------------
@@ -57,18 +57,18 @@ module tb;
     // -------------------------------------------------------------------------
     
     // Task: System-Wide Active-Low Reset Initialization
-   // task reset_system;
-   // begin
-   //     $display("[TB] Asserting Master Reset Vector...");
-   //     rst_n = 1'b0;
-   //     ui_in  = 8'h08; // Set spi_ss_n = 1 (inactive), all others 0
-   //     uio_in = 8'h00;
-   //     #(100);
-   //     @(posedge clk);
-   //     #1 rst_n = 1'b1;
-   //     $display("[TB] Master Reset Released Successfully.");
-   // end
-   // endtask
+    task reset_system;
+     begin
+        $display("[TB] Asserting Master Reset Vector...");
+        rst_n = 1'b0;
+        ui_in  = 8'h08; // Set spi_ss_n = 1 (inactive), all others 0
+        uio_in = 8'h00;
+        #(100);
+        @(posedge clk);
+        #1 rst_n = 1'b1;
+        $display("[TB] Master Reset Released Successfully.");
+     end
+    endtask
 
     // Task: Streams full 128-bit pulse sequence config register array
     task configure_sequencer(
@@ -115,13 +115,13 @@ module tb;
         clk    = 1'b0;
         rst_n  = 1'b1;
         ena    = 1'b1; 
-        ui_in  = 8'h08; // Set spi_ss_n high initially
+        ui_in  = 8'h00; // Set spi_ss_n high initially
         uio_in = 8'h00;
 
-        // Step 1: System Boot and Power Reset execution
-      //  #(100);
-      //  reset_system();
-      //  #(100);
+       // Step 1: System Boot and Power Reset execution
+        #(100);
+        reset_system();
+        #(100);
 
         // Step 2: Push 128-bit sequence limits to internal configuration registers
         // Params: tA=6 cycles, tau=35 cycles, tB=12 cycles, echo_count=2 loops
